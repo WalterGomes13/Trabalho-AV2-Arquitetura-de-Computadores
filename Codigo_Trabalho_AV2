@@ -1,0 +1,195 @@
+.eqv  index $t1
+.eqv multiplicador $t2
+.eqv index_sw $t3
+.eqv index_sb $t4
+.eqv resto $t5
+.eqv quociente $t6
+.eqv index_buf $t7
+.eqv endereco $t8
+.eqv flag_sign $s0
+.eqv char  $s3
+.eqv LENGHT 400
+.eqv  digit $s4
+.eqv  num   $s5
+
+.data
+    nome_arquivo: .asciiz "C:/Users/josew/Downloads/lista.txt"
+                  .align 2
+    in_buffer:    .space 500
+    lista_numerica: .space 500
+    separador: .asciiz "|"
+    lista_ordenada: .asciiz "C:\\Users\\josew\\Downloads\\lista_ordenada.txt"
+                    .align 2
+    buffer: .space 4
+    lista_em_string: .space 500
+    
+.text
+    li    $v0, 13
+    la    $a0, nome_arquivo
+    li    $a1, 0
+    syscall
+    move  $s0, $v0
+    
+    li    $v0, 14
+    move  $a0, $s0
+    la    $a1, in_buffer
+    li    $a2, 500
+    syscall
+    move  $s1, $v0
+    
+    li    $v0, 16
+    move  $a0, $s0
+    syscall
+    
+    li multiplicador, 1
+    li index, 0
+    li num,0
+    li index_sw, 0
+init:
+    li	multiplicador, 1
+    li	num, 0
+    
+for:
+    lb  char, in_buffer(index)   #ler o proximo caractere da lista
+    add index, index, 1     #acrescentar 1 ao index
+    beq char,$zero, armazena 
+    beq char, ',', armazena
+    beq char, '-', sinal
+    sub digit, char, 0x30
+    mul num, num, 10
+    add num, num, digit
+    j for
+    
+armazena:
+    mul num, num, multiplicador #guardar o valor na mem ria e passar para o pr ximo numero da lista
+    sw  num, lista_numerica(index_sw)  #armazena
+    add index_sw, index_sw, 4  
+    beq	char,$zero, exit 
+    j	init
+    #seguir para o proximo strNum
+sinal:
+    li multiplicador, -1
+    j  for
+    #torna o multiplicador -1
+exit: 
+    
+    li $t0, 0
+    
+    ordenacao:
+    
+            bgt $t0, 100, sair
+            
+            li $t1, 0
+            li $t2, 0
+            li $t3, 4
+            
+            while:
+                 
+                 bgt $t1, 98, incremento
+                 
+                 lw $s0, lista_numerica($t2)
+                 lw $s1, lista_numerica($t3)
+                 
+                 bgt $s0, $s1, trocar
+                 
+                 back:
+                 
+                     addi $t1, $t1, 1
+                     addi $t2, $t2, 4
+                     addi $t3, $t3, 4
+                     
+                     j while
+            trocar:
+            
+                 sw $s0, lista_numerica($t3)
+                 sw $s1, lista_numerica($t2)
+                 
+                 j back
+                 
+            incremento:
+            
+                 addi $t0, $t0, 1
+                 
+                 j ordenacao
+                 
+    sair:
+    
+            li $t4, 0
+            
+            loop: 
+                 bgt $t4, 396, finalizar
+                 
+                 lw $a0, lista_numerica($t4)
+                 li $v0, 1
+                 syscall
+                 
+                 addi $t4, $t4, 4
+                 
+                 li $v0,4
+                 la $a0, separador
+                 syscall 
+                 
+                 j loop
+                 
+            finalizar:
+                 li index_sb, 0
+                 li index_sw, 0
+              
+              restart:
+                 li flag_sign, 0
+                 li index_buf, 0
+              sinal2:
+                 beq index_sw, LENGHT, escrever
+                 lw  num, lista_numerica(index_sw)
+                 add index_sw, index_sw, 4
+                 bge num, $zero, converte
+                 li flag_sign, 1
+                 mul num, num, -1
+              converte:
+                 move quociente, num
+              proximo:
+                 li   $t0, 10
+                 div  quociente, $t0
+                 mfhi resto
+                 mflo quociente
+                 add  char, resto, 0x30
+                 sb   char, buffer(index_buf)
+                 add  index_buf, index_buf, 1
+                 bnez quociente, proximo
+                 beqz flag_sign, ordenar
+                 li   $t0, '-'
+                 sb   $t0, buffer(index_buf)
+                 add  index_buf, index_buf, 1
+              ordenar:
+                 beqz index_buf, saida
+                 add  index_buf, index_buf, -1
+                 lb   char, buffer(index_buf)
+                 sb   char, lista_em_string(index_sb)
+                 add  index_sb, index_sb, 1
+                 j    ordenar
+              saida:
+                 beq  index_sw, LENGHT, escrever
+                 li   $t0, ','
+                 sb   $t0, lista_em_string(index_sb)
+                 add  index_sb, index_sb, 1
+                 j    restart
+              escrever:
+                 li   $v0, 13
+                 la   $a0, lista_ordenada
+                 li   $a1, 1
+                 li   $a2, 0
+                 syscall
+              read: move $s7, $v0
+                 li   $v0, 15
+                 move $a0, $s7
+                 la   $a1, lista_em_string
+                 li   $a2, 500
+                 syscall
+                 
+              close:
+                 li   $v0, 16
+                 move $a0, $s7
+              fim:
+                 li   $v0, 10
+                 syscall
+              
